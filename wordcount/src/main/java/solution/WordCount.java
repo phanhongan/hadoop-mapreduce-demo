@@ -35,7 +35,7 @@ public class WordCount {
     /*
      * Instantiate a Job object for your job's configuration.  
      */
-    Job job = Job.getInstance();
+    Job job = new Job();
     
     /*
      * Specify the jar file that contains your driver, mapper, and reducer.
