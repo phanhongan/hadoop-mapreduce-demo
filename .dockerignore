@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+*.iml
+.vscode
+
+# Build artifacts
+target/
+output/
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+
+# Documentation
+docs/
+*.md
+LICENSE
+
+# Scripts (keep only essential ones)
+scripts/
+!scripts/build.sh
+!scripts/run-*.sh
+
+# Docker
+Dockerfile
+docker-compose.yml
+docker/

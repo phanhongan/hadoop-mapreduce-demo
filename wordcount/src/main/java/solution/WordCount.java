@@ -6,96 +6,117 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.JobPriority;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/* 
- * MapReduce jobs are typically implemented by using a driver class.
- * The purpose of a driver class is to set up the configuration for the
- * MapReduce job and to run the job.
- * Typical requirements for a driver class include configuring the input
- * and output data formats, configuring the map and reduce classes,
- * and specifying intermediate data formats.
+/**
+ * WordCount MapReduce job driver class.
  * 
- * The following is the code for the driver class:
+ * This class demonstrates the basic MapReduce pattern for counting word frequencies
+ * in text files. It serves as a template for other MapReduce applications.
+ * 
+ * Features:
+ * - Modern Hadoop 3.x API usage
+ * - Proper logging with SLF4J
+ * - Command-line argument validation
+ * - Job configuration and execution
+ * - Error handling and exit codes
  */
-public class WordCount {
+public class WordCount implements Tool {
 
-  public static void main(String[] args) throws Exception {
+    private static final Logger logger = LoggerFactory.getLogger(WordCount.class);
+    private Configuration conf;
 
-    /*
-     * The expected command-line arguments are the paths containing
-     * input and output data. Terminate the job if the number of
-     * command-line arguments is not exactly 2.
-     */
-    if (args.length != 2) {
-      System.out.printf(
-          "Usage: WordCount <input dir> <output dir>\n");
-      System.exit(-1);
+    @Override
+    public void setConf(Configuration conf) {
+        this.conf = conf;
     }
 
-    /*
-     * Instantiate a Job object for your job's configuration.  
-     */
-    Job job = new Job();
-    
-    /*
-     * Specify the jar file that contains your driver, mapper, and reducer.
-     * Hadoop will transfer this jar file to nodes in your cluster running
-     * mapper and reducer tasks.
-     */
-    job.setJarByClass(WordCount.class);
-    
-    /*
-     * Specify an easily-decipherable name for the job.
-     * This job name will appear in reports and logs.
-     */
-    job.setJobName("Word Count");
+    @Override
+    public Configuration getConf() {
+        return this.conf;
+    }
 
-    /*
-     * Specify the paths to the input and output data based on the
-     * command-line arguments.
-     */
-    FileInputFormat.setInputPaths(job, new Path(args[0]));
-    FileOutputFormat.setOutputPath(job, new Path(args[1]));
+    @Override
+    public int run(String[] args) throws Exception {
+        // Validate command-line arguments
+        if (args.length != 2) {
+            logger.error("Invalid number of arguments. Expected 2, got {}.", args.length);
+            System.err.println("Usage: WordCount <input dir> <output dir>");
+            System.err.println("Example: WordCount input/shakespeare.txt output/wordcount");
+            return -1;
+        }
 
-    /*
-     * Specify the mapper and reducer classes.
-     */
-    job.setMapperClass(WordMapper.class);
-    job.setReducerClass(SumReducer.class);
+        String inputPath = args[0];
+        String outputPath = args[1];
 
-    /*
-     * For the word count application, the input file and output 
-     * files are in text format - the default format.
+        logger.info("Starting WordCount job with input: {} and output: {}", inputPath, outputPath);
+
+        try {
+            // Create job configuration
+            Job job = Job.getInstance(getConf(), "Word Count");
+            
+            // Set the jar file that contains the driver, mapper, and reducer
+            job.setJarByClass(WordCount.class);
+            
+            // Set input and output paths
+            FileInputFormat.setInputPaths(job, new Path(inputPath));
+            FileOutputFormat.setOutputPath(job, new Path(outputPath));
+            
+            // Set mapper and reducer classes
+            job.setMapperClass(WordMapper.class);
+            job.setReducerClass(SumReducer.class);
+            
+            // Set output key and value classes
+            job.setOutputKeyClass(Text.class);
+            job.setOutputValueClass(IntWritable.class);
+            
+            // Set the number of reduce tasks (optional - defaults to 1)
+            job.setNumReduceTasks(2);
+            
+            // Enable speculative execution for better performance
+            job.setSpeculativeExecution(true);
+            
+            // Set job priority
+            job.setPriority(JobPriority.NORMAL);
+            
+            logger.info("Job configuration completed. Starting job execution...");
+            
+            // Submit the job and wait for completion
+            boolean success = job.waitForCompletion(true);
+            
+            if (success) {
+                logger.info("WordCount job completed successfully");
+                return 0;
+            } else {
+                logger.error("WordCount job failed");
+                return 1;
+            }
+            
+        } catch (Exception e) {
+            logger.error("Error during WordCount job execution", e);
+            throw e;
+        }
+    }
+
+    /**
+     * Main method to run the WordCount job.
      * 
-     * In text format files, each record is a line delineated by a 
-     * by a line terminator.
-     * 
-     * When you use other input formats, you must call the 
-     * SetInputFormatClass method. When you use other 
-     * output formats, you must call the setOutputFormatClass method.
+     * @param args Command line arguments: [input_dir, output_dir]
      */
-      
-    /*
-     * For the word count application, the mapper's output keys and
-     * values have the same data types as the reducer's output keys 
-     * and values: Text and IntWritable.
-     * 
-     * When they are not the same data types, you must call the 
-     * setMapOutputKeyClass and setMapOutputValueClass 
-     * methods.
-     */
-
-    /*
-     * Specify the job's output key and value classes.
-     */
-    job.setOutputKeyClass(Text.class);
-    job.setOutputValueClass(IntWritable.class);
-
-    /*
-     * Start the MapReduce job and wait for it to finish.
-     * If it finishes successfully, return 0. If not, return 1.
-     */
-    boolean success = job.waitForCompletion(true);
-    System.exit(success ? 0 : 1);
-  }
+    public static void main(String[] args) throws Exception {
+        Configuration conf = new Configuration();
+        
+        // Set Hadoop configuration properties
+        conf.set("mapreduce.job.reduces", "2");
+        conf.set("mapreduce.map.output.compress", "true");
+        conf.set("mapreduce.map.output.compress.codec", "org.apache.hadoop.io.compress.SnappyCodec");
+        
+        int exitCode = ToolRunner.run(conf, new WordCount(), args);
+        System.exit(exitCode);
+    }
 }
