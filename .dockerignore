@@ -35,3 +35,4 @@ scripts/
 Dockerfile
 docker-compose.yml
 docker/
+output/
