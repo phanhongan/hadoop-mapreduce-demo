@@ -196,6 +196,17 @@ docker run -v $(pwd)/input:/app/input -v $(pwd)/output:/app/output \
 4. Add tests
 5. Submit a pull request
 
+### GitHub Workflows
+
+This project includes comprehensive GitHub Actions workflows:
+
+- **CI/CD Pipeline**: Automated build, test, and quality checks on every push and PR
+- **Release Management**: Automated release creation and artifact packaging
+- **Dependency Updates**: Weekly security scans and dependency updates
+- **PR Validation**: Automated validation of pull requests
+
+See [.github/workflows/README.md](.github/workflows/README.md) for detailed workflow documentation.
+
 ## 📄 License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
