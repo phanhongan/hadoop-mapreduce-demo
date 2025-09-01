@@ -1,10 +1,10 @@
 package solution;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class MonthPartitionTest {
 
@@ -19,7 +19,7 @@ public class MonthPartitionTest {
 		int result;
 		for (int i = 0; i < months.length; i++) {
 			result = mpart.getPartition(new Text("foo"), new Text(months[i]), 12);
-			assertEquals(result,i);			
+			assertEquals(i, result);			
 		}
 		
 	}

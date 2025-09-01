@@ -1,0 +1,152 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v2.1.0)'
+        required: true
+        type: string
+
+env:
+  MAVEN_OPTS: "-Xmx1024m -XX:+UseG1GC"
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: 17
+        distribution: 'temurin'
+        cache: maven
+    
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Extract version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+        echo "Release version: ${{ steps.version.outputs.version }}"
+    
+    - name: Build and package
+      run: |
+        echo "Building release artifacts..."
+        mvn clean package -DskipTests
+        
+        echo "Creating release directory..."
+        mkdir -p release-artifacts
+        
+        # Copy JAR files
+        find . -name "*.jar" -not -path "./target/original-*" -not -path "./target/maven-*" | while read jar; do
+          cp "$jar" release-artifacts/
+        done
+        
+        # Copy documentation
+        cp README.md release-artifacts/
+        cp LICENSE release-artifacts/
+        cp -r docs/ release-artifacts/ 2>/dev/null || echo "No docs directory found"
+        
+        # Create a summary of modules
+        echo "# Hadoop MapReduce Demo - Release ${{ steps.version.outputs.version }}" > release-artifacts/RELEASE_NOTES.md
+        echo "" >> release-artifacts/RELEASE_NOTES.md
+        echo "## Modules Included" >> release-artifacts/RELEASE_NOTES.md
+        echo "" >> release-artifacts/RELEASE_NOTES.md
+        for module in wordcount averagewordlength log_file_analysis partitioner counters createsequencefile inputformat mrunit toolrunner writables combiner logging; do
+          if [ -d "$module" ]; then
+            echo "- $module" >> release-artifacts/RELEASE_NOTES.md
+          fi
+        done
+        echo "" >> release-artifacts/RELEASE_NOTES.md
+        echo "## Usage" >> release-artifacts/RELEASE_NOTES.md
+        echo "" >> release-artifacts/RELEASE_NOTES.md
+        echo "1. Ensure Java 17+ is installed" >> release-artifacts/RELEASE_NOTES.md
+        echo "2. Run: \`mvn exec:java -pl wordcount -Dexec.mainClass=\"solution.WordCountLocalTest\" -Dexec.args=\"input/shakespeare.txt output/wordcount\"\`" >> release-artifacts/RELEASE_NOTES.md
+        echo "3. See README.md for more examples" >> release-artifacts/RELEASE_NOTES.md
+    
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-artifacts-${{ steps.version.outputs.version }}
+        path: release-artifacts/
+        retention-days: 30
+    
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        release_name: Hadoop MapReduce Demo ${{ steps.version.outputs.version }}
+        body: |
+          ## Hadoop MapReduce Demo ${{ steps.version.outputs.version }}
+          
+          A comprehensive collection of Hadoop MapReduce examples demonstrating various concepts and patterns for big data processing.
+          
+          ### What's Included
+          
+          - **Word Count**: Classic MapReduce example for counting word frequencies
+          - **Average Word Length**: Demonstrates custom Writable types and aggregation
+          - **Log Analysis**: Real-world log processing with IP validation
+          - **Custom Partitioning**: Month-based data distribution across reducers
+          - **Counters**: Using Hadoop counters for job statistics
+          - **Sequence Files**: Working with Hadoop's binary file format
+          - **Custom Input Formats**: Fixed-width column text processing
+          - **MRUnit Testing**: Unit testing for MapReduce jobs
+          - **ToolRunner**: Command-line argument handling
+          - **Combiners**: Local aggregation optimization
+          - **Custom Writables**: Creating custom data types
+          - **Logging**: Comprehensive logging throughout jobs
+          
+          ### Requirements
+          
+          - Java 17 or higher
+          - Maven 3.9+
+          
+          ### Quick Start
+          
+          ```bash
+          # Clone and build
+          git clone <repository-url>
+          cd hadoop-mapreduce-demo
+          mvn clean compile
+          
+          # Run WordCount example
+          mvn exec:java -pl wordcount -Dexec.mainClass="solution.WordCountLocalTest" -Dexec.args="input/shakespeare.txt output/wordcount"
+          ```
+          
+          See README.md for detailed documentation and more examples.
+        draft: false
+        prerelease: false
+    
+    - name: Upload assets to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./release-artifacts/
+        asset_name: hadoop-mapreduce-demo-${{ steps.version.outputs.version }}.zip
+        asset_content_type: application/zip
+      if: false  # Disabled for now, would need to create zip file first

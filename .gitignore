@@ -14,5 +14,9 @@
 # Maven
 log/
 target/
+dependency-reduced-pom.xml
 
 **/bin
+
+# output
+output/
