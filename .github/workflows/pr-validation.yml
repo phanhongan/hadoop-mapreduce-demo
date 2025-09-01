@@ -29,6 +29,16 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
     
+    - name: Validate PR title length
+      run: |
+        if [ ${#PR_TITLE} -lt 5 ]; then
+          echo "❌ PR title is too short"
+          exit 1
+        fi
+        echo "✅ PR title validation passed"
+      env:
+        PR_TITLE: ${{ github.event.pull_request.title }}
+      
     - name: Validate PR title
       run: |
         echo "Validating PR title: ${{ github.event.pull_request.title }}"
