@@ -38,16 +38,6 @@ jobs:
         echo "✅ PR title validation passed"
       env:
         PR_TITLE: ${{ github.event.pull_request.title }}
-      
-    - name: Validate PR title
-      run: |
-        echo "Validating PR title: ${{ github.event.pull_request.title }}"
-        # Basic validation - ensure title is not empty and has reasonable length
-        if [ ${#{{ github.event.pull_request.title }}} -lt 5 ]; then
-          echo "❌ PR title is too short"
-          exit 1
-        fi
-        echo "✅ PR title validation passed"
     
     - name: Check for large files
       run: |
